@@ -81,7 +81,8 @@ printGame xs = do
   putStrLn $ showRow $ take 3 $ drop 6 $ xs
 
 showRow :: GameState -> String
-showRow (a : b : c : []) = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
+showRow [a, b, c] = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
+showRow _ = error "invalid row size to print"
 
 enemy :: Player -> Player
 enemy p = if p == O then X else O
