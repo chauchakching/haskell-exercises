@@ -1,6 +1,7 @@
 module TicTacToe where
 
 import Data.List (elemIndices)
+import Data.Maybe (isJust)
 import System.Random (randomRIO)
 
 data Player = O | X deriving (Show, Eq)
@@ -21,7 +22,6 @@ tictactoe = do
 randomGame :: Player -> GameState -> IO ()
 randomGame p game = do
   putStrLn "------------"
-  printGame game
   putStrLn ""
   if win game p
     then putStrLn $ "-- Player " ++ show p ++ " wins! --"
@@ -32,10 +32,12 @@ randomGame p game = do
           if gameEnd game
             then putStrLn "-- DRAW --"
             else do
-              randomGame (enemy p) =<< randMove game p
+              updatedGame <- randMove game p
+              printGame updatedGame
+              randomGame (enemy p) updatedGame
 
 gameEnd :: GameState -> Bool
-gameEnd = all (/= Nothing)
+gameEnd = notElem Nothing
 
 win :: GameState -> Player -> Bool
 win game p = any matchAllPoss allWinPoss
@@ -58,7 +60,7 @@ randMove game p = do
 checkMove :: GameState -> Int -> Either String ()
 checkMove game i
   | i < 0 || i >= 9 = Left "Invalid move: out of range"
-  | game !! i /= Nothing = Left "Invalid move: already occupied"
+  | isJust (game !! i) = Left "Invalid move: already occupied"
   | otherwise = Right ()
 
 forceMove :: GameState -> Player -> Int -> GameState
