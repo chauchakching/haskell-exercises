@@ -1,16 +1,14 @@
 module TicTacToe where
 
-import Data.List (any, findIndices)
-import Safe (headMay)
+import Data.List (elemIndices)
 import System.Random (randomRIO)
 
-data PositionState = O | X | E
-  deriving (Show, Eq)
+data Player = O | X deriving (Show, Eq)
 
-type GameState = [PositionState]
+type GameState = [Maybe Player]
 
 initGame :: GameState
-initGame = replicate 9 E
+initGame = replicate 9 Nothing
 
 tictactoe :: IO ()
 tictactoe = do
@@ -20,7 +18,7 @@ tictactoe = do
   -- fmap printGame game1
   randomGame O initGame
 
-randomGame :: PositionState -> GameState -> IO ()
+randomGame :: Player -> GameState -> IO ()
 randomGame p game = do
   putStrLn "------------"
   printGame game
@@ -37,43 +35,42 @@ randomGame p game = do
               randomGame (enemy p) =<< randMove game p
 
 gameEnd :: GameState -> Bool
-gameEnd = all (/= E)
+gameEnd = all (/= Nothing)
 
-win :: GameState -> PositionState -> Bool
+win :: GameState -> Player -> Bool
 win game p = any matchAllPoss allWinPoss
  where
   allWinPoss = horizontalPoss ++ verticalPoss ++ diagonalPoss
   horizontalPoss = map (\i -> [i .. i + 2]) [0, 3, 6]
   verticalPoss = map (\i -> [i, i + 3, i + 6]) [0 .. 2]
   diagonalPoss = [[0, 4, 8], [2, 4, 6]]
-  matchAllPoss = all (\i -> game !! i == p)
+  matchAllPoss = all (\i -> game !! i == Just p)
 
-randMove :: GameState -> PositionState -> IO GameState
+randMove :: GameState -> Player -> IO GameState
 randMove game p = do
-  let indexes = findIndices (== E) game
+  let indexes = elemIndices Nothing game
   case length indexes of
     0 -> pure game
-    otherwise -> do
+    _ -> do
       i <- (indexes !!) <$> randomRIO (0, length indexes - 1)
       pure $ forceMove game p i
 
-checkMove :: GameState -> PositionState -> Int -> Either String ()
-checkMove game x i
+checkMove :: GameState -> Int -> Either String ()
+checkMove game i
   | i < 0 || i >= 9 = Left "Invalid move: out of range"
-  | game !! i /= E = Left "Invalid move: already occupied"
+  | game !! i /= Nothing = Left "Invalid move: already occupied"
   | otherwise = Right ()
 
-forceMove :: GameState -> PositionState -> Int -> GameState
+forceMove :: GameState -> Player -> Int -> GameState
 forceMove game x i
   | i < 0 || i >= 9 = game
-  | game !! i /= E = game
-  | otherwise = updateIdx i x game
+  | otherwise = updateIdx i (Just x) game
 
-showPosition :: PositionState -> String
+showPosition :: Maybe Player -> String
 showPosition x = case x of
-  O -> "O"
-  X -> "X"
-  otherwise -> " "
+  Just O -> "O"
+  Just X -> "X"
+  _ -> " "
 
 printGame :: GameState -> IO ()
 printGame xs = do
@@ -83,10 +80,10 @@ printGame xs = do
   putStrLn $ "-┼-┼-"
   putStrLn $ showRow $ take 3 $ drop 6 $ xs
 
-showRow :: [PositionState] -> String
+showRow :: GameState -> String
 showRow (a : b : c : []) = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
 
-enemy :: PositionState -> PositionState
+enemy :: Player -> Player
 enemy p = if p == O then X else O
 
 updateIdx :: Int -> a -> [a] -> [a]
