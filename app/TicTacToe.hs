@@ -25,20 +25,17 @@ runGame game = do
   putStrLn "------------"
   putStrLn ""
   let p = turn game
-  if wins game p
-    then putStrLn $ "-- Player " ++ show p ++ " wins! --"
-    else
-      if wins game (enemy p)
-        then putStrLn $ "-- Player " ++ (show $ enemy p) ++ " wins! --"
-        else
-          if gameEnd game
-            then putStrLn "-- DRAW --"
-            else do
-              -- updatedGame <- if p == O then randMove game p else return $ smartMove game
-              putStrLn $ "player " ++ show p ++ " making a calculated move..."
-              updatedGame <- return $ smartMove game
-              printGame updatedGame
-              runGame updatedGame
+  let p2 = enemy p
+  if
+      | wins game p -> putStrLn $ "-- Player " ++ show p ++ " wins! --"
+      | wins game p2 -> putStrLn $ "-- Player " ++ show p2 ++ " wins! --"
+      | gameEnd game -> putStrLn "-- DRAW --"
+      | otherwise -> do
+          -- updatedGame <- if p == O then randMove game p else return $ smartMove game
+          putStrLn $ "player " ++ show p ++ " making a calculated move..."
+          updatedGame <- return $ smartMove game
+          printGame updatedGame
+          runGame updatedGame
 
 gameEnd :: GameState -> Bool
 gameEnd = notElem B
@@ -80,7 +77,7 @@ gametree g = Node g [gametree g' | g' <- moves g]
 moves :: GameState -> [GameState]
 moves g
   | win g = []
-  | length indexes == 0 = []
+  | null indexes = []
   | otherwise = map (forceMove g p) indexes
  where
   p = turn g
@@ -140,11 +137,11 @@ enemy p = if p == O then X else O
 updateIdx :: Int -> a -> [a] -> [a]
 updateIdx i x xs
   | i < 0 || i >= length xs = xs
-  | otherwise = (take i xs) ++ [x] ++ (drop (i + 1) xs)
+  | otherwise = take i xs ++ [x] ++ drop (i + 1) xs
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []
-splitEvery n xs = (take n xs) : (splitEvery n $ drop n xs)
+splitEvery n xs = take n xs : splitEvery n (drop n xs)
 
 root :: Tree a -> a
 root (Node a _) = a
