@@ -1,16 +1,19 @@
 module TicTacToe where
 
-import Data.List (elemIndices, sortBy, sortOn)
-import Data.Maybe (isJust)
+import Data.List (intersperse, sortOn, transpose)
+import Data.Maybe (fromMaybe)
 import Data.Tree (Tree (Node))
 import System.Random (randomRIO)
 
 data Player = O | B | X deriving (Show, Eq, Ord)
 
-type GameState = [Player]
+type GameState = [[Player]]
+
+gameSize :: Int
+gameSize = 3
 
 initGame :: GameState
-initGame = replicate 9 B
+initGame = replicate gameSize $ replicate gameSize B
 
 tictactoe :: IO ()
 tictactoe = do
@@ -38,19 +41,21 @@ runGame game = do
           runGame updatedGame
 
 gameEnd :: GameState -> Bool
-gameEnd = notElem B
+gameEnd = all (notElem B)
 
 win :: GameState -> Bool
 win g = wins g O || wins g X
 
 wins :: GameState -> Player -> Bool
-wins game p = any matchAllPoss allWinPoss
+wins game p = any line (rows ++ cols ++ diags)
  where
-  allWinPoss = horizontalPoss ++ verticalPoss ++ diagonalPoss
-  horizontalPoss = map (\i -> [i .. i + 2]) [0, 3, 6]
-  verticalPoss = map (\i -> [i, i + 3, i + 6]) [0 .. 2]
-  diagonalPoss = [[0, 4, 8], [2, 4, 6]]
-  matchAllPoss = all (\i -> game !! i == p)
+  line = all (== p)
+  rows = game
+  cols = transpose game
+  diags = [diag game, diag (transpose game)]
+
+diag :: GameState -> [Player]
+diag g = [g !! n !! n | n <- [0 .. gameSize - 1]]
 
 -- Use min-max to get optimal move
 smartMove :: GameState -> GameState
@@ -77,35 +82,19 @@ gametree g = Node g [gametree g' | g' <- moves g]
 moves :: GameState -> [GameState]
 moves g
   | win g = []
-  | null indexes = []
-  | otherwise = map (forceMove g p) indexes
+  | otherwise = gs
  where
   p = turn g
-  indexes = elemIndices B g
+  gs :: [GameState]
+  gs = [updateIdx i (updateIdx j p $ g !! i) g | i <- [0 .. length g - 1], j <- [0 .. length (head g) - 1], (g !! i) !! j == B]
 
 prune :: Int -> Tree a -> Tree a
 prune 0 (Node x _) = Node x []
 prune n (Node x ts) = Node x [prune (n - 1) t | t <- ts]
 
-randMove :: GameState -> Player -> IO GameState
-randMove game p = do
-  let indexes = elemIndices B game
-  case length indexes of
-    0 -> pure game
-    _ -> do
-      i <- (indexes !!) <$> randomRIO (0, length indexes - 1)
-      pure $ forceMove game p i
-
-checkMove :: GameState -> Int -> Either String ()
-checkMove game i
-  | i < 0 || i >= 9 = Left "Invalid move: out of range"
-  | game !! i /= B = Left "Invalid move: already occupied"
-  | otherwise = Right ()
-
-forceMove :: GameState -> Player -> Int -> GameState
-forceMove game x i
-  | i < 0 || i >= 9 = game
-  | otherwise = updateIdx i x game
+randMove :: GameState -> IO GameState
+randMove game = do
+  fromMaybe game <$> randItem (moves game)
 
 showPosition :: Player -> String
 showPosition x = case x of
@@ -115,19 +104,16 @@ showPosition x = case x of
 
 printGame :: GameState -> IO ()
 printGame xs = do
-  putStrLn $ showRow $ take 3 xs
-  putStrLn $ "-┼-┼-"
-  putStrLn $ showRow $ take 3 $ drop 3 $ xs
-  putStrLn $ "-┼-┼-"
-  putStrLn $ showRow $ take 3 $ drop 6 $ xs
+  let middleS = init $ concat (replicate (length $ head xs) "-┼")
+  mapM_ putStrLn $ intersperse middleS $ map showRow xs
 
 turn :: GameState -> Player
 turn g =
-  if even (length $ filter (/= B) g)
+  if even (length $ filter (/= B) $ concat g)
     then O
     else X
 
-showRow :: GameState -> String
+showRow :: [Player] -> String
 showRow [a, b, c] = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
 showRow x = error $ "invalid row to print: " ++ show x
 
@@ -151,3 +137,9 @@ branches (Node _ xs) = xs
 
 branchesNodes :: Tree a -> [a]
 branchesNodes = map root . branches
+
+randItem :: [a] -> IO (Maybe a)
+randItem [] = pure Nothing
+randItem xs = do
+  i <- randomRIO (0, length xs - 1)
+  pure $ Just $ xs !! i

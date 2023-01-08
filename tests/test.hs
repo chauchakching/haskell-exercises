@@ -18,8 +18,8 @@ tests =
         ]
     , testGroup
         "gametree"
-        [ testCase "empty: root has 9 sub-trees" $ (length $ branches $ prune 1 $ gametree $ replicate 9 B) @?= 9
-        , testCase "3 moves: root has 6 sub-trees" $ (length $ branches $ prune 1 $ gametree [O, O, B, X, X, B, O, X, B]) @?= 3
+        [ testCase "empty: root has 9 sub-trees" $ (length $ branches $ prune 1 $ gametree $ initGame) @?= 9
+        , testCase "3 moves: root has 6 sub-trees" $ (length $ branches $ prune 1 $ gametree [[O, O, B], [X, X, B], [O, X, B]]) @?= 3
         ]
     , testGroup
         "moves"
@@ -31,4 +31,4 @@ showGameTree :: Tree GameState -> String
 showGameTree = drawTree . fmap showGameState
  where
   showGameState :: GameState -> String
-  showGameState = intersperse ',' . concatMap showPosition
+  showGameState = intersperse ',' . concatMap showPosition . concat
