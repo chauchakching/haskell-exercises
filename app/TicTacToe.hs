@@ -1,15 +1,16 @@
 module TicTacToe where
 
-import Data.List (elemIndices)
+import Data.List (elemIndices, sortBy, sortOn)
 import Data.Maybe (isJust)
+import Data.Tree (Tree (Node))
 import System.Random (randomRIO)
 
-data Player = O | X deriving (Show, Eq)
+data Player = O | B | X deriving (Show, Eq, Ord)
 
-type GameState = [Maybe Player]
+type GameState = [Player]
 
 initGame :: GameState
-initGame = replicate 9 Nothing
+initGame = replicate 9 B
 
 tictactoe :: IO ()
 tictactoe = do
@@ -17,40 +18,81 @@ tictactoe = do
   -- printGame initGame
   -- let game1 = move initGame X 5
   -- fmap printGame game1
-  randomGame O initGame
+  runGame initGame
 
-randomGame :: Player -> GameState -> IO ()
-randomGame p game = do
+runGame :: GameState -> IO ()
+runGame game = do
   putStrLn "------------"
   putStrLn ""
-  if win game p
+  let p = turn game
+  if wins game p
     then putStrLn $ "-- Player " ++ show p ++ " wins! --"
     else
-      if win game (enemy p)
+      if wins game (enemy p)
         then putStrLn $ "-- Player " ++ (show $ enemy p) ++ " wins! --"
-        else do
+        else
           if gameEnd game
             then putStrLn "-- DRAW --"
             else do
-              updatedGame <- randMove game p
+              -- updatedGame <- if p == O then randMove game p else return $ smartMove game
+              putStrLn $ "player " ++ show p ++ " making a calculated move..."
+              updatedGame <- return $ smartMove game
               printGame updatedGame
-              randomGame (enemy p) updatedGame
+              runGame updatedGame
 
 gameEnd :: GameState -> Bool
-gameEnd = notElem Nothing
+gameEnd = notElem B
 
-win :: GameState -> Player -> Bool
-win game p = any matchAllPoss allWinPoss
+win :: GameState -> Bool
+win g = wins g O || wins g X
+
+wins :: GameState -> Player -> Bool
+wins game p = any matchAllPoss allWinPoss
  where
   allWinPoss = horizontalPoss ++ verticalPoss ++ diagonalPoss
   horizontalPoss = map (\i -> [i .. i + 2]) [0, 3, 6]
   verticalPoss = map (\i -> [i, i + 3, i + 6]) [0 .. 2]
   diagonalPoss = [[0, 4, 8], [2, 4, 6]]
-  matchAllPoss = all (\i -> game !! i == Just p)
+  matchAllPoss = all (\i -> game !! i == p)
+
+-- Use min-max to get optimal move
+smartMove :: GameState -> GameState
+smartMove g = snd $ (if turn g == X then last else head) $ sortOn fst nextMoves
+ where
+  nextMoves = branchesNodes $ minmaxTree $ prune 9 $ gametree g
+
+minmaxTree :: Tree GameState -> Tree (Player, GameState)
+minmaxTree (Node g [])
+  | wins g X = Node (X, g) []
+  | wins g O = Node (O, g) []
+  | otherwise = Node (B, g) []
+minmaxTree (Node g gTrees)
+  | turn g == X = Node (maximum nextMovesScores, g) maxTrees
+  | otherwise = Node (minimum nextMovesScores, g) maxTrees
+ where
+  nextMovesScores = [p | Node (p, _) _ <- maxTrees]
+  maxTrees = map minmaxTree gTrees
+
+gametree :: GameState -> Tree GameState
+gametree g = Node g [gametree g' | g' <- moves g]
+
+-- Possible moves of a game. No more move if someone won.
+moves :: GameState -> [GameState]
+moves g
+  | win g = []
+  | length indexes == 0 = []
+  | otherwise = map (forceMove g p) indexes
+ where
+  p = turn g
+  indexes = elemIndices B g
+
+prune :: Int -> Tree a -> Tree a
+prune 0 (Node x _) = Node x []
+prune n (Node x ts) = Node x [prune (n - 1) t | t <- ts]
 
 randMove :: GameState -> Player -> IO GameState
 randMove game p = do
-  let indexes = elemIndices Nothing game
+  let indexes = elemIndices B game
   case length indexes of
     0 -> pure game
     _ -> do
@@ -60,18 +102,18 @@ randMove game p = do
 checkMove :: GameState -> Int -> Either String ()
 checkMove game i
   | i < 0 || i >= 9 = Left "Invalid move: out of range"
-  | isJust (game !! i) = Left "Invalid move: already occupied"
+  | game !! i /= B = Left "Invalid move: already occupied"
   | otherwise = Right ()
 
 forceMove :: GameState -> Player -> Int -> GameState
 forceMove game x i
   | i < 0 || i >= 9 = game
-  | otherwise = updateIdx i (Just x) game
+  | otherwise = updateIdx i x game
 
-showPosition :: Maybe Player -> String
+showPosition :: Player -> String
 showPosition x = case x of
-  Just O -> "O"
-  Just X -> "X"
+  O -> "O"
+  X -> "X"
   _ -> " "
 
 printGame :: GameState -> IO ()
@@ -82,9 +124,15 @@ printGame xs = do
   putStrLn $ "-┼-┼-"
   putStrLn $ showRow $ take 3 $ drop 6 $ xs
 
+turn :: GameState -> Player
+turn g =
+  if even (length $ filter (/= B) g)
+    then O
+    else X
+
 showRow :: GameState -> String
 showRow [a, b, c] = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
-showRow _ = error "invalid row size to print"
+showRow x = error $ "invalid row to print: " ++ show x
 
 enemy :: Player -> Player
 enemy p = if p == O then X else O
@@ -95,5 +143,14 @@ updateIdx i x xs
   | otherwise = (take i xs) ++ [x] ++ (drop (i + 1) xs)
 
 splitEvery :: Int -> [a] -> [[a]]
-splitEvery n [] = []
+splitEvery _ [] = []
 splitEvery n xs = (take n xs) : (splitEvery n $ drop n xs)
+
+root :: Tree a -> a
+root (Node a _) = a
+
+branches :: Tree a -> [Tree a]
+branches (Node _ xs) = xs
+
+branchesNodes :: Tree a -> [a]
+branchesNodes = map root . branches
