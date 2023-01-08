@@ -89,7 +89,12 @@ moves g
  where
   p = turn g
   gs :: [GameState]
-  gs = [updateIdx i (updateIdx j p $ g !! i) g | i <- [0 .. length g - 1], j <- [0 .. length (head g) - 1], (g !! i) !! j == B]
+  gs =
+    [ updateIdx i (updateIdx j p $ g !! i) g
+    | i <- [0 .. length g - 1]
+    , j <- [0 .. length (head g) - 1]
+    , (g !! i) !! j == B
+    ]
 
 prune :: Int -> Tree a -> Tree a
 prune 0 (Node x _) = Node x []
