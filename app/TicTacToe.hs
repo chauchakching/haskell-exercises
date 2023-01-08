@@ -1,6 +1,6 @@
 module TicTacToe where
 
-import Data.List (intersperse, sortOn, transpose)
+import Data.List (intercalate, intersperse, sortOn, transpose)
 import Data.Maybe (fromMaybe)
 import Data.Tree (Tree (Node))
 import System.Random (randomRIO)
@@ -11,6 +11,9 @@ type GameState = [[Player]]
 
 gameSize :: Int
 gameSize = 3
+
+minmaxDepth :: Int
+minmaxDepth = 9
 
 initGame :: GameState
 initGame = replicate gameSize $ replicate gameSize B
@@ -61,7 +64,7 @@ diag g = [g !! n !! n | n <- [0 .. gameSize - 1]]
 smartMove :: GameState -> GameState
 smartMove g = snd $ (if turn g == X then last else head) $ sortOn fst nextMoves
  where
-  nextMoves = branchesNodes $ minmaxTree $ prune 9 $ gametree g
+  nextMoves = branchesNodes $ minmaxTree $ prune minmaxDepth $ gametree g
 
 minmaxTree :: Tree GameState -> Tree (Player, GameState)
 minmaxTree (Node g [])
