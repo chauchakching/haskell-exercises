@@ -114,8 +114,7 @@ turn g =
     else X
 
 showRow :: [Player] -> String
-showRow [a, b, c] = showPosition a ++ "|" ++ showPosition b ++ "|" ++ showPosition c
-showRow x = error $ "invalid row to print: " ++ show x
+showRow xs = intercalate "|" $ map showPosition xs
 
 enemy :: Player -> Player
 enemy p = if p == O then X else O
