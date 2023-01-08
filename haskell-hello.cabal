@@ -50,9 +50,16 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
+common common-extensions
+    default-extensions:
+        OverloadedStrings,
+        MultiWayIf
+
 executable haskell-hello
     -- Import common warning flags.
-    import:           warnings
+    import: 
+        warnings,
+        common-extensions
 
     -- .hs or .lhs file containing the Main module.
     main-is:          Main.hs
@@ -78,6 +85,8 @@ executable haskell-hello
     default-language: Haskell2010
 
 test-suite test
+    import: 
+        common-extensions
     default-language:
         Haskell2010
     type:
